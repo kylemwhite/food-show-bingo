@@ -236,6 +236,8 @@
   .topbar .brand { font-weight: 800; letter-spacing: -0.01em; }
   .tag { display: inline-block; background: var(--surface-2); border: 1px solid var(--line);
     border-radius: 999px; padding: 3px 10px; font-size: 0.78rem; color: var(--muted); }
+  .ver { text-align: center; font-size: 0.7rem; color: var(--muted); opacity: 0.55;
+    margin-top: 6px; letter-spacing: 0.02em; }
 </style>
 </head>
 <body>
@@ -244,6 +246,10 @@
 <script>
 (function () {
   "use strict";
+
+  // Bump on every deploy so a glance tells you the site has the latest.
+  // Keep the CACHE name in sw.js in sync (it gates the offline shell update).
+  var APP_VERSION = "2026-09-10";
 
   /* ---------------------------------------------------------------------------
      Data
@@ -329,6 +335,8 @@
   }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function mount(node) { clear(app); app.appendChild(node); window.scrollTo(0, 0); }
+
+  function versionTag() { return el("p", { class: "ver", text: "v " + APP_VERSION }); }
 
   var toastTimer = null;
   function toast(msg) {
@@ -574,6 +582,7 @@
       el("p", { class: "hint", html:
         "Joining? Open the link the host sends you." }),
       el("div", { class: "grow" }),
+      versionTag(),
     ]);
     mount(node);
   }
@@ -720,6 +729,7 @@
       el("button", { class: "btn btn-block", text: "Play →", onclick: function () {
         state.view = "auto"; render();
       }}),
+      versionTag(),
     ]);
     mount(node);
   }
@@ -787,6 +797,7 @@
       playBtn,
       el("p", { class: "hint", text:
         "This device remembers your name for rematches. Reopening the link won't wipe your card." }),
+      versionTag(),
     ]);
     mount(node);
     validate();
@@ -926,6 +937,7 @@
         close(); render();
       }}),
       el("button", { class: "btn-ghost btn-block", text: "Close", onclick: function () { close(); } }),
+      versionTag(),
     ]);
     var backdrop = el("div", { class: "sheet-backdrop", onclick: function (e) {
       if (e.target === backdrop) close();

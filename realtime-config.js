@@ -16,6 +16,6 @@
    Costs nothing on the free tier for this use (a few messages per game).
 --------------------------------------------------------------------------- */
 window.FSB_CONFIG = {
-  supabaseUrl: "https://radqmjxbpkqwnoqntzfc.supabase.com",
+  supabaseUrl: "https://radqmjxbpkqwnoqntzfc.supabase.co",
   supabaseKey: "sb_publishable__11O6OVDGUdOSKO5vO-edQ_ViXJbmTR"
 };

@@ -89,6 +89,13 @@ base64url bitmask over the built-in prompt list) is omitted when every prompt is
 on. `c` carries any custom prompts. The prompt list order is frozen for
 `v=1` — it's append-only for future versions.
 
+## Versioning
+
+A small `v <date>` shows at the bottom of the landing / join / share screens and
+in the in-game menu — glance there to confirm a deploy landed. On each change,
+bump **both** `APP_VERSION` in `index.html` and `CACHE` in `sw.js` to the same
+value (the `CACHE` bump is what makes clients pull the new offline shell).
+
 ## Tests
 
 No dependencies — just Node (and, for the browser test, a local Chrome or Edge).

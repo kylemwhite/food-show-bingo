@@ -1,6 +1,7 @@
 /* Food Show Bingo — offline app-shell cache.
-   Bump CACHE when any shell file changes so clients pick it up. */
-const CACHE = 'fsb-v2';
+   Bump CACHE on every deploy so clients pick up the new shell.
+   Keep this value equal to APP_VERSION in index.html. */
+const CACHE = 'fsb-2026-09-10';
 const SHELL = [
   './',
   './index.html',
