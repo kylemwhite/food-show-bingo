@@ -8,6 +8,8 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./icon.svg">
+<!-- Optional live-sync config. Blank by default → game runs fully offline. -->
+<script src="./realtime-config.js"></script>
 <style>
   :root {
     --bg: #141210;
@@ -126,9 +128,9 @@
   }
 
   /* board */
-  .board-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .board-head .who { font-weight: 700; }
-  .board-head .mode { color: var(--muted); font-size: 0.85rem; }
+  .board-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .board-head .who { font-weight: 700; white-space: nowrap; flex: 0 0 auto; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+  .board-head .mode { color: var(--muted); font-size: 0.85rem; white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
   .board {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -197,6 +199,38 @@
     padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 30;
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   }
+
+  /* live sync (optional) */
+  .rt-stack {
+    position: fixed; left: 50%; top: calc(54px + var(--safe-t)); transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    width: max-content; max-width: 92vw; z-index: 40; pointer-events: none;
+  }
+  .rt-banner {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--accent); color: var(--accent-ink);
+    padding: 10px 10px 10px 14px; border-radius: 12px;
+    font-size: 0.92rem; font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    animation: rt-in 0.22s ease;
+  }
+  @keyframes rt-in { from { opacity: 0; transform: translateY(-8px); } }
+  .rt-banner .rt-emoji { font-size: 1.2rem; }
+  .rt-banner .rt-mode {
+    background: rgba(255,255,255,0.22); border-radius: 6px;
+    padding: 1px 6px; font-size: 0.78rem; margin-left: 2px;
+  }
+  .rt-banner .rt-x {
+    background: rgba(255,255,255,0.18); border: none; color: inherit;
+    border-radius: 8px; padding: 5px 9px; font-size: 0.8rem; line-height: 1; flex: none;
+  }
+  .rt-dot { display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; color: var(--muted); flex: none; white-space: nowrap; }
+  .rt-dot:empty { gap: 0; }
+  .rt-dot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+  .rt-dot.rt-live::before { background: var(--mark); }
+  .rt-dot.rt-error::before { background: var(--accent); }
+  .rt-dot.rt-connecting::before { background: #c99a3a; }
 
   .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .topbar .brand { font-weight: 800; letter-spacing: -0.01em; }
@@ -525,6 +559,7 @@
   }
 
   function viewLanding() {
+    teardownRealtime();
     var node = el("div", { class: "stack" }, [
       topbar(),
       el("div", { class: "grow" }),
@@ -547,6 +582,7 @@
   var setupDraft = null;
 
   function viewSetup() {
+    teardownRealtime();
     if (!setupDraft) {
       var prev = lsJSON("fsb:lastSetup", null);
       setupDraft = {
@@ -654,6 +690,7 @@
 
   /* ----- share ----- */
   function viewShare() {
+    teardownRealtime();
     var cfg = parseHash();
     if (!cfg) { state.view = "landing"; render(); return; }
     var url = shareUrl(cfg);
@@ -707,6 +744,7 @@
 
   /* ----- join ----- */
   function viewJoin(cfg) {
+    teardownRealtime();
     var profile = getProfile() || { name: "", emoji: EMOJI[0] };
     var draft = { name: profile.name, emoji: profile.emoji };
 
@@ -759,6 +797,7 @@
 
   function viewBoard(cfg) {
     var profile = getProfile();
+    ensureRealtime(cfg, profile);
     var pool = poolFromConfig(cfg);
     var cells = buildCard(cfg.seed, profile.name, pool);
     var game = loadGame(cfg.seed);
@@ -809,6 +848,7 @@
         if (!hasWin(game.marks, cfg.mode)) { toast("Not yet — finish the " + MODES[cfg.mode].label.toLowerCase()); return; }
         game.claimed = true;
         saveGame(cfg.seed, game);
+        if (rtSession) rtSession.announceBingo(cfg.mode);
         state.view = "bingo";
         render();
       }
@@ -820,6 +860,7 @@
         el("span", { class: "who", text: profile.emoji + " " + profile.name }),
         el("span", { class: "mode", text: "· " + MODES[cfg.mode].label }),
         el("span", { class: "grow" }),
+        rtDotNode(),
         el("button", { class: "link-btn", text: "menu", onclick: function () { openGameMenu(cfg); } }),
       ]),
       boardEl,
@@ -896,6 +937,7 @@
   /* ----- bingo ----- */
   function viewBingo(cfg) {
     var profile = getProfile();
+    ensureRealtime(cfg, profile);
     var pool = poolFromConfig(cfg);
     var cells = buildCard(cfg.seed, profile.name, pool);
     var game = loadGame(cfg.seed);
@@ -931,6 +973,7 @@
       el("div", { class: "btn-row" }, [
         el("button", { text: "Back to card", onclick: function () {
           game.claimed = false; saveGame(cfg.seed, game);
+          if (rtSession) rtSession.announceRetract();
           state.view = "board"; render();
         }}),
         el("button", { class: "btn-primary", text: "Rematch", onclick: function () {
@@ -945,6 +988,198 @@
     ]);
     mount(node);
   }
+
+  /* ---------------------------------------------------------------------------
+     Live sync (optional) — Supabase Realtime "Broadcast" + "Presence".
+
+     Off unless realtime-config.js sets window.FSB_CONFIG.supabaseUrl / .supabaseKey.
+     The channel name is the game seed, so no database, table, or auth is needed —
+     just ephemeral pub/sub scoped to one game. Anon key is a public client key.
+  --------------------------------------------------------------------------- */
+  var Realtime = (function () {
+    var cfg = window.FSB_CONFIG || {};
+    var enabled = !!(cfg.supabaseUrl && cfg.supabaseKey && window.location.protocol.indexOf("http") === 0);
+    var libPromise = null;
+
+    function loadLib() {
+      if (libPromise) return libPromise;
+      libPromise = new Promise(function (resolve, reject) {
+        if (window.supabase && window.supabase.createClient) return resolve(window.supabase);
+        var s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+        s.async = true;
+        s.onload = function () {
+          (window.supabase && window.supabase.createClient) ? resolve(window.supabase) : reject(new Error("supabase missing"));
+        };
+        s.onerror = function () { reject(new Error("supabase failed to load")); };
+        document.head.appendChild(s);
+      });
+      return libPromise;
+    }
+
+    function rid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+    // handlers: { onBingo, onRetract, onPresence, onStatus }
+    function attach(seed, profile, handlers) {
+      if (!enabled) return null;
+      var session = {
+        seed: seed, status: "connecting", _detached: false,
+        announceBingo: function () {}, announceRetract: function () {},
+        detach: function () { session._detached = true; },
+      };
+
+      loadLib().then(function (sb) {
+        if (session._detached) return;
+        var client = sb.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+          realtime: { params: { eventsPerSecond: 5 } },
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        var ch = client.channel("fsb:" + seed, {
+          config: { broadcast: { self: false }, presence: { key: profile.name || rid() } },
+        });
+
+        ch.on("broadcast", { event: "bingo" }, function (m) {
+          if (handlers.onBingo) handlers.onBingo(m.payload || {});
+        });
+        ch.on("broadcast", { event: "retract" }, function (m) {
+          if (handlers.onRetract) handlers.onRetract(m.payload || {});
+        });
+        ch.on("presence", { event: "sync" }, function () {
+          if (!handlers.onPresence) return;
+          try { handlers.onPresence(Object.keys(ch.presenceState()).length); } catch (e) {}
+        });
+
+        ch.subscribe(function (status) {
+          session.status = status === "SUBSCRIBED" ? "live"
+            : (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") ? "error"
+            : "connecting";
+          if (handlers.onStatus) handlers.onStatus(session.status);
+          if (status === "SUBSCRIBED") {
+            try { ch.track({ name: profile.name, emoji: profile.emoji }); } catch (e) {}
+          }
+        });
+
+        session.announceBingo = function (mode) {
+          try {
+            ch.send({ type: "broadcast", event: "bingo", payload: {
+              id: rid(), name: profile.name, emoji: profile.emoji, mode: mode, at: Date.now(),
+            }});
+          } catch (e) {}
+        };
+        session.announceRetract = function () {
+          try { ch.send({ type: "broadcast", event: "retract", payload: { name: profile.name } }); }
+          catch (e) {}
+        };
+        session.detach = function () {
+          session._detached = true;
+          try { client.removeChannel(ch); } catch (e) {}
+        };
+      }).catch(function () {
+        session.status = "error";
+        if (handlers.onStatus) handlers.onStatus("error");
+      });
+
+      return session;
+    }
+
+    return { enabled: enabled, attach: attach };
+  })();
+
+  var rtSession = null;
+  var rtState = { status: "connecting", count: 0 };
+  var rtStack = null;
+  var rtBanners = {};   // id -> element
+
+  function ensureRealtime(cfg, profile) {
+    if (!Realtime.enabled) return;
+    if (rtSession && rtSession.seed === cfg.seed) return;
+    teardownRealtime();
+    rtState = { status: "connecting", count: 0 };
+    rtSession = Realtime.attach(cfg.seed, profile, {
+      onBingo: showRemoteBingo,
+      onRetract: clearRemoteBingo,
+      onPresence: function (n) { rtState.count = n; paintRtDot(); },
+      onStatus: function (s) { rtState.status = s; paintRtDot(); },
+    });
+  }
+  function teardownRealtime() {
+    if (rtSession) { try { rtSession.detach(); } catch (e) {} rtSession = null; }
+  }
+
+  function rtDotNode() {
+    if (!Realtime.enabled) return null;
+    var d = el("span", { class: "rt-dot", id: "rt-dot" });
+    paintRtDot(d);
+    return d;
+  }
+  function paintRtDot(node) {
+    var d = node || document.getElementById("rt-dot");
+    if (!d) return;
+    d.className = "rt-dot rt-" + rtState.status;
+    d.textContent = rtState.status === "live"
+      ? (rtState.count > 1 ? rtState.count + " online" : "live")
+      : rtState.status === "error" ? "sync off" : "";
+    d.title = rtState.status === "live" ? "Live sync connected" : "Live sync " + rtState.status;
+  }
+
+  function ensureRtStack() {
+    if (rtStack && document.body.contains(rtStack)) return rtStack;
+    rtStack = el("div", { class: "rt-stack" });
+    document.body.appendChild(rtStack);
+    return rtStack;
+  }
+
+  function showRemoteBingo(p) {
+    if (!p || !p.name || (p.id && rtBanners[p.id])) return;
+    buzz([120, 60, 160]);
+    beep();
+    var stack = ensureRtStack();
+    var kids = [el("span", { class: "rt-emoji", text: p.emoji || "🎉" })];
+    var line = el("span", {}, [
+      el("strong", { text: p.name }),
+      document.createTextNode(" got BINGO!"),
+    ]);
+    if (p.mode && MODES[p.mode]) line.appendChild(el("span", { class: "rt-mode", text: MODES[p.mode].label }));
+    kids.push(line);
+    var banner = el("div", { class: "rt-banner" }, kids);
+    banner.dataset.name = p.name;
+    var close = function () {
+      banner.remove();
+      if (p.id) delete rtBanners[p.id];
+    };
+    banner.appendChild(el("button", { class: "rt-x", text: "✕", "aria-label": "dismiss", onclick: close }));
+    stack.appendChild(banner);
+    if (p.id) rtBanners[p.id] = banner;
+    setTimeout(close, 15000);
+  }
+  function clearRemoteBingo(p) {
+    if (!p || !p.name || !rtStack) return;
+    rtStack.querySelectorAll('.rt-banner[data-name="' + (window.CSS && CSS.escape ? CSS.escape(p.name) : p.name) + '"]')
+      .forEach(function (b) { b.remove(); });
+    Object.keys(rtBanners).forEach(function (id) {
+      if (rtBanners[id] && rtBanners[id].dataset.name === p.name) delete rtBanners[id];
+    });
+  }
+
+  var _ac = null;
+  function beep() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      _ac = _ac || new AC();
+      if (_ac.state === "suspended") _ac.resume();
+      var o = _ac.createOscillator(), g = _ac.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(784, _ac.currentTime);
+      o.frequency.setValueAtTime(1047, _ac.currentTime + 0.12);
+      o.connect(g); g.connect(_ac.destination);
+      g.gain.setValueAtTime(0.0001, _ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.14, _ac.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.4);
+      o.start(); o.stop(_ac.currentTime + 0.42);
+    } catch (e) {}
+  }
+  function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
 
   /* ---------------------------------------------------------------------------
      Router

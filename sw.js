@@ -1,6 +1,6 @@
 /* Food Show Bingo — offline app-shell cache.
    Bump CACHE when any shell file changes so clients pick it up. */
-const CACHE = 'fsb-v1';
+const CACHE = 'fsb-v2';
 const SHELL = [
   './',
   './index.html',
@@ -26,6 +26,13 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // Live-sync config is always fetched fresh so key changes take effect on
+  // the next load; when offline it simply fails and sync stays disabled.
+  if (url.pathname.endsWith('/realtime-config.js')) {
+    e.respondWith(fetch(req).catch(() => new Response('', { headers: { 'Content-Type': 'application/javascript' } })));
+    return;
+  }
 
   // Cache-first for the shell; fall back to network and cache what we can.
   e.respondWith(

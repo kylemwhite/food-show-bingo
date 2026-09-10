@@ -143,12 +143,15 @@ squares.
 
 ## Non-goals (v1)
 
-- No server, no backend, no hosted realtime service.
-- No live sync between phones — no shared lobby, no "someone got bingo"
-  notification, no live player list.
+- No server or backend that the project runs or maintains.
+- No shared lobby, no live player list beyond a simple count, no "kill feed" of
+  every mark.
 - No persistent accounts, stats, or history across games.
 - No real-time chat.
 - No verification that a marked square really happened.
+
+Live sync is **opt-in** (see below), not a non-goal — it stays off unless keys
+are configured, and the game is complete without it.
 
 ## Architecture
 
@@ -175,16 +178,36 @@ squares.
   once loaded — venue wifi is unreliable and the app doesn't need the network
   anyway after the link is open.
 - Keep the bundle small for the same reason.
+- **`realtime-config.js`** is a tiny separate file (never cached by the service
+  worker, `no-cache` on the host) so live-sync keys can be changed with a one-line
+  edit and take effect on the next load. Blank = feature off.
 
-## Trade-offs of the no-server design
+## Optional live sync
 
-- **Lost:** automatic win broadcast, shared lobby/presence, any cross-phone
-  "kill feed." All replaced by playing in person and talking to each other.
-- **Fine because:** the game is already honor-system and played by a group
-  walking a floor together. Live sync would be cosmetic.
-- If live presence is ever wanted, the smallest add is a hosted realtime free
-  tier (PartyKit / Supabase / Firebase / Ably) syncing only lobby + win
-  events; card marking stays local. Not planned for v1.
+Shipped, but **off unless `realtime-config.js` carries a Supabase URL + anon
+key.** When on:
+
+- Each player joins a Supabase Realtime channel named after the game **seed** —
+  no database, table, or auth; just ephemeral broadcast + presence.
+- Calling BINGO broadcasts `{name, emoji, mode}`; every other phone shows a
+  banner (sound + vibration). "Back to card" broadcasts a retraction that clears
+  it everywhere.
+- Presence gives a lightweight "N online" indicator on the board.
+- Card marking stays 100% local — only the BINGO/retract events cross the wire,
+  so traffic is a handful of messages per game (free tier is untroubled).
+- The Supabase JS library is lazy-loaded from a CDN and only when keys are set;
+  the no-sync path stays zero-cost. If it fails to load (offline), the game
+  simply runs without sync.
+
+**Not synced on purpose:** individual square marks, a shared lobby, chat. The
+game is still played in person; this layer is just the "someone won" ping.
+
+### Trade-offs
+
+- Spoofing a BINGO over the wire is possible — same as the in-person honor
+  system, so acceptable.
+- Two tabs on one device share `localStorage`, so they can't be two distinct
+  players; real players on separate devices are unaffected.
 
 ## Settled during v1
 
@@ -197,8 +220,9 @@ squares.
 
 ## Possible v2
 
-- Sound/vibration on BINGO.
 - "Shake to shuffle" a fresh personal card before the game starts (host allows).
 - A curated second prompt pack (e.g. tech expo, wine show) selectable at setup.
-- Optional hosted-realtime presence (see trade-offs above) if groups want a live
-  "someone got bingo" ping.
+- When live sync is on: a proper lobby (see who joined before starting) and an
+  authoritative "first to claim" using Supabase Presence + a claimed-at
+  timestamp.
+- Names of who's online (not just a count) in the board header.
