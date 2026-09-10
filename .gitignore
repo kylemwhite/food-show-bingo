@@ -1,0 +1,14 @@
+# dependencies (none committed; kept out if ever added)
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# local test / build scratch
+*.log
+/screenshots/
+/dist/

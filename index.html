@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141210">
+<title>Food Show Bingo</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<style>
+  :root {
+    --bg: #141210;
+    --surface: #1f1c18;
+    --surface-2: #2a2620;
+    --line: #3a352d;
+    --text: #f3ede2;
+    --muted: #a89e8d;
+    --accent: #e8452c;
+    --accent-ink: #fff;
+    --mark: #3ba55d;
+    --mark-ink: #fff;
+    --radius: 14px;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100%;
+    padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+    display: flex;
+    flex-direction: column;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; margin: 0 0 12px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .center { text-align: center; }
+  .grow { flex: 1; }
+  .stack > * + * { margin-top: 12px; }
+
+  button, .btn {
+    font: inherit;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  button:active, .btn:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-block { display: block; width: 100%; }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row > * { flex: 1; }
+  .btn-ghost { background: transparent; }
+  .link-btn {
+    background: none; border: none; color: var(--muted);
+    text-decoration: underline; padding: 8px; font-weight: 500;
+  }
+
+  .card-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  label.field { display: block; font-weight: 600; margin-bottom: 6px; }
+  input[type=text] {
+    font: inherit; width: 100%;
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .emoji-grid button {
+    padding: 0; aspect-ratio: 1; font-size: 1.5rem; background: var(--surface-2);
+  }
+  .emoji-grid button[aria-pressed=true] { border-color: var(--accent); background: #3a2018; }
+
+  /* segmented control */
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button {
+    flex: 1; border: none; border-radius: 0; background: var(--surface);
+    padding: 12px 6px; font-size: 0.92rem;
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
+
+  /* prompt pool editor */
+  .pool-list { max-height: 46vh; overflow: auto; -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--line); border-radius: 10px; }
+  .pool-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; }
+  .pool-item + .pool-item { border-top: 1px solid var(--line); }
+  .pool-item input[type=checkbox] { width: 20px; height: 20px; margin-top: 1px; flex: none; }
+  .pool-group { padding: 8px 12px; font-size: 0.78rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); background: var(--surface-2);
+    position: sticky; top: 0; }
+  .pool-item.custom { color: var(--accent); }
+
+  /* share / QR */
+  .qr-wrap { background: #fff; border-radius: 12px; padding: 14px; display: grid; place-items: center; }
+  .qr-wrap svg { width: 100%; height: auto; max-width: 260px; display: block; }
+  .code-box {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; word-break: break-all; font-size: 0.82rem; color: var(--muted);
+  }
+
+  /* board */
+  .board-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .board-head .who { font-weight: 700; }
+  .board-head .mode { color: var(--muted); font-size: 0.85rem; }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-auto-rows: minmax(3.9rem, auto);
+    gap: 5px;
+  }
+  .sq {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 5px 3px;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    font-size: clamp(8px, 2.7vw, 13px);
+    line-height: 1.14;
+    color: var(--text);
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  .sq span { display: block; max-height: 100%; }
+  .sq.free { background: #2f2a22; color: var(--muted); font-weight: 700; letter-spacing: 0.06em; }
+  .sq.marked { background: var(--mark); border-color: var(--mark); color: var(--mark-ink); font-weight: 600; }
+  .sq.has-note::before {
+    content: ""; position: absolute; bottom: 3px; left: 4px;
+    width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.65;
+  }
+  .board-foot { margin-top: 12px; }
+  .hint { font-size: 0.82rem; color: var(--muted); text-align: center; margin-top: 8px; }
+
+  /* bottom sheet */
+  .sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: flex; align-items: flex-end; justify-content: center;
+    z-index: 20;
+  }
+  .sheet {
+    background: var(--surface); width: 100%; max-width: 560px;
+    border-radius: 18px 18px 0 0; border: 1px solid var(--line);
+    padding: 18px 16px calc(18px + var(--safe-b));
+  }
+  .sheet .prompt-text { font-size: 1.05rem; font-weight: 600; margin-bottom: 14px; }
+  textarea {
+    font: inherit; width: 100%; min-height: 64px; resize: vertical;
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+  }
+
+  /* bingo screen */
+  .bingo-hero { text-align: center; padding: 8px 0 16px; }
+  .bingo-hero .big {
+    font-size: clamp(2.4rem, 12vw, 3.4rem); font-weight: 800; letter-spacing: 0.02em;
+    color: var(--accent); margin: 4px 0;
+  }
+  .notes-list { text-align: left; font-size: 0.9rem; }
+  .notes-list li { margin-bottom: 6px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%);
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
+    padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 30;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .topbar .brand { font-weight: 800; letter-spacing: -0.01em; }
+  .tag { display: inline-block; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 10px; font-size: 0.78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app"><noscript>Food Show Bingo needs JavaScript.</noscript></div>
+<script src="./qrcode.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------------------------------------------------------------------
+     Data
+  --------------------------------------------------------------------------- */
+  var POOL_VERSION = 1;
+
+  // Order is frozen for POOL_VERSION 1 — the on/off bitmask in the share link
+  // is positional. Append-only for future versions; never reorder.
+  var BUILTIN = [
+    { g: "People", t: "Someone talks to you with food in their teeth" },
+    { g: "People", t: "Someone has a visible spill or stain on their shirt" },
+    { g: "People", t: "A vendor is asleep or nodding off in their booth" },
+    { g: "People", t: "On a call, ignoring a customer at their booth" },
+    { g: "People", t: "A rep mispronounces their own product name" },
+    { g: "People", t: "Someone in a full suit in a very casual hall" },
+    { g: "People", t: "A vendor eating their own product for lunch" },
+    { g: "People", t: "Rival-booth vendors chatting like old pals" },
+    { g: "People", t: "Someone taking notes on a paper clipboard" },
+    { g: "People", t: "“Let me talk to my team” — clearly a no" },
+
+    { g: "Samples & food", t: "Too many samples broke someone's tote bag" },
+    { g: "Samples & food", t: "A sample table is completely picked clean" },
+    { g: "Samples & food", t: "You're handed a sample you immediately regret" },
+    { g: "Samples & food", t: "A “new flavor” that's just a relabel" },
+    { g: "Samples & food", t: "Someone double-dips" },
+    { g: "Samples & food", t: "A garnish that's trying way, way too hard" },
+    { g: "Samples & food", t: "A free tote bag that's already falling apart" },
+    { g: "Samples & food", t: "A booth giving out full-size products, not samples" },
+    { g: "Samples & food", t: "A coffee sample that's gone cold" },
+    { g: "Samples & food", t: "Something served on a tiny spoon" },
+
+    { g: "Booths & signage", t: "A typo on a printed booth banner" },
+    { g: "Booths & signage", t: "A booth with a spinning prize wheel" },
+    { g: "Booths & signage", t: "A TV playing the same 20-second loop" },
+    { g: "Booths & signage", t: "A QR code that doesn't scan" },
+    { g: "Booths & signage", t: "A booth using the word “artisanal” unironically" },
+    { g: "Booths & signage", t: "An “As seen on Shark Tank” sign" },
+    { g: "Booths & signage", t: "A booth that's one folding table and a laptop" },
+    { g: "Booths & signage", t: "Still setting up hours after opening" },
+    { g: "Booths & signage", t: "A mobbed booth right next to an empty one" },
+    { g: "Booths & signage", t: "Fake grass or Astroturf flooring in a booth" },
+
+    { g: "Show-floor chaos", t: "A pallet jack nearly runs someone over" },
+    { g: "Show-floor chaos", t: "A hand truck stacked way too high" },
+    { g: "Show-floor chaos", t: "A spill on the floor with no cone" },
+    { g: "Show-floor chaos", t: "The one aisle everyone is jammed into" },
+    { g: "Show-floor chaos", t: "Someone loudly taking a work call mid-aisle" },
+    { g: "Show-floor chaos", t: "A lost exhibitor asking where their booth is" },
+    { g: "Show-floor chaos", t: "Registration line wrapped around the corner" },
+    { g: "Show-floor chaos", t: "Someone carrying more swag than they can hold" },
+    { g: "Show-floor chaos", t: "A dog on the show floor" },
+    { g: "Show-floor chaos", t: "A fire exit propped open for a smoke break" },
+  ];
+
+  var EMOJI = ["🍕","🌮","🧀","🍩","🥨","🍔","🍟","🥐","☕","🍇",
+               "🍤","🥕","🧁","🍿","🦐","🐕","🚪","🔥"];
+
+  var MODES = {
+    line:     { label: "Line",     blurb: "Any row, column, or diagonal." },
+    corners:  { label: "Corners",  blurb: "All four corner squares." },
+    blackout: { label: "Blackout", blurb: "Every square on the card." },
+  };
+
+  /* ---------------------------------------------------------------------------
+     Utilities
+  --------------------------------------------------------------------------- */
+  var app = document.getElementById("app");
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "class") n.className = attrs[k];
+      else if (k === "html") n.innerHTML = attrs[k];
+      else if (k === "text") n.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] != null) n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) {
+      if (c == null) return;
+      n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function mount(node) { clear(app); app.appendChild(node); window.scrollTo(0, 0); }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var existing = document.querySelector(".toast");
+    if (existing) existing.remove();
+    var t = el("div", { class: "toast", text: msg });
+    document.body.appendChild(t);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.remove(); }, 2200);
+  }
+
+  // localStorage helpers that never throw
+  function lsGet(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, val); } catch (e) { /* private mode, quota */ }
+  }
+  function lsJSON(key, fallback) {
+    var raw = lsGet(key);
+    if (!raw) return fallback;
+    try { return JSON.parse(raw); } catch (e) { return fallback; }
+  }
+
+  /* ----- seeded PRNG (xmur3 + mulberry32) ----- */
+  function xmur3(str) {
+    var h = 1779033703 ^ str.length;
+    for (var i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function () {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return (h ^= h >>> 16) >>> 0;
+    };
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function rngFor(str) { return mulberry32(xmur3(str)()); }
+  function shuffled(arr, rng) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(rng() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  /* ----- base64url for the enabled-bitmask ----- */
+  function bytesToB64url(bytes) {
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlToBytes(str) {
+    str = str.replace(/-/g, "+").replace(/_/g, "/");
+    while (str.length % 4) str += "=";
+    var bin = atob(str);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function maskFromEnabled(enabledArr, len) {
+    var bytes = new Uint8Array(Math.ceil(len / 8));
+    for (var i = 0; i < len; i++) {
+      if (enabledArr[i]) bytes[i >> 3] |= (1 << (i & 7));
+    }
+    return bytesToB64url(bytes);
+  }
+  function enabledFromMask(b64, len) {
+    var out = new Array(len).fill(true);
+    if (!b64) return out;
+    try {
+      var bytes = b64urlToBytes(b64);
+      for (var i = 0; i < len; i++) out[i] = !!(bytes[i >> 3] & (1 << (i & 7)));
+    } catch (e) { /* keep all-true */ }
+    return out;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Game config <-> URL fragment
+     #v=1&s=SEED&m=MODE&p=BITMASK&c=custom~prompts
+  --------------------------------------------------------------------------- */
+  function randomSeed() {
+    var chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
+    var out = "";
+    var rand = (window.crypto && crypto.getRandomValues)
+      ? Array.from(crypto.getRandomValues(new Uint32Array(6)))
+      : [0, 0, 0, 0, 0, 0].map(function () { return Math.floor(Math.random() * 1e9); });
+    for (var i = 0; i < 6; i++) out += chars[rand[i] % chars.length];
+    return out;
+  }
+
+  function parseHash() {
+    var h = location.hash.replace(/^#/, "");
+    if (!h) return null;
+    var q = new URLSearchParams(h);
+    if (!q.get("s")) return null;
+    var mode = q.get("m");
+    if (!MODES[mode]) mode = "line";
+    var custom = (q.get("c") || "")
+      .split("~").map(function (s) { return decodeURIComponent(s).trim(); })
+      .filter(Boolean);
+    var enabled = enabledFromMask(q.get("p"), BUILTIN.length);
+    return {
+      v: parseInt(q.get("v"), 10) || 1,
+      seed: q.get("s"),
+      mode: mode,
+      enabled: enabled,
+      custom: custom,
+    };
+  }
+
+  function buildHash(cfg) {
+    var q = new URLSearchParams();
+    q.set("v", String(POOL_VERSION));
+    q.set("s", cfg.seed);
+    q.set("m", cfg.mode);
+    // Only include the bitmask if the host actually turned something off —
+    // keeps the common-case link (and its QR) short.
+    if (cfg.enabled.some(function (on) { return !on; })) {
+      q.set("p", maskFromEnabled(cfg.enabled, BUILTIN.length));
+    }
+    if (cfg.custom && cfg.custom.length) {
+      q.set("c", cfg.custom.map(function (s) { return encodeURIComponent(s); }).join("~"));
+    }
+    return "#" + q.toString();
+  }
+
+  function poolFromConfig(cfg) {
+    var pool = [];
+    BUILTIN.forEach(function (item, i) { if (cfg.enabled[i]) pool.push(item.t); });
+    (cfg.custom || []).forEach(function (t) { pool.push(t); });
+    return pool;
+  }
+
+  function shareUrl(cfg) {
+    return location.origin + location.pathname + buildHash(cfg);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Card building + win detection
+  --------------------------------------------------------------------------- */
+  function buildCard(seed, name, pool) {
+    var rng = rngFor(seed + "::" + name.trim().toLowerCase());
+    var picks = shuffled(pool, rng).slice(0, 24);
+    var cells = [];
+    for (var i = 0; i < 25; i++) {
+      if (i === 12) { cells.push({ free: true, text: "FREE" }); }
+      else { cells.push({ free: false, text: picks[i < 12 ? i : i - 1] }); }
+    }
+    return cells;
+  }
+
+  var LINES = (function () {
+    var out = [];
+    for (var r = 0; r < 5; r++) out.push([r * 5, r * 5 + 1, r * 5 + 2, r * 5 + 3, r * 5 + 4]);
+    for (var c = 0; c < 5; c++) out.push([c, c + 5, c + 10, c + 15, c + 20]);
+    out.push([0, 6, 12, 18, 24]);
+    out.push([4, 8, 12, 16, 20]);
+    return out;
+  })();
+  var CORNERS = [0, 4, 20, 24];
+
+  function isMarked(marks, i) { return i === 12 ? true : !!marks[i]; }
+
+  function hasWin(marks, mode) {
+    if (mode === "blackout") {
+      for (var i = 0; i < 25; i++) if (!isMarked(marks, i)) return false;
+      return true;
+    }
+    if (mode === "corners") {
+      return CORNERS.every(function (i) { return isMarked(marks, i); });
+    }
+    return LINES.some(function (ln) {
+      return ln.every(function (i) { return isMarked(marks, i); });
+    });
+  }
+
+  function winningCells(marks, mode) {
+    var set = {};
+    if (mode === "blackout") { for (var i = 0; i < 25; i++) set[i] = true; return set; }
+    if (mode === "corners") { CORNERS.forEach(function (i) { set[i] = true; }); return set; }
+    LINES.forEach(function (ln) {
+      if (ln.every(function (i) { return isMarked(marks, i); })) ln.forEach(function (i) { set[i] = true; });
+    });
+    return set;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Per-device state
+  --------------------------------------------------------------------------- */
+  function getProfile() { return lsJSON("fsb:profile", null); }
+  function setProfile(p) { lsSet("fsb:profile", JSON.stringify(p)); }
+
+  function gameKey(seed) { return "fsb:game:" + seed; }
+  function loadGame(seed) {
+    return lsJSON(gameKey(seed), { marks: new Array(25).fill(false), notes: {}, claimed: false });
+  }
+  function saveGame(seed, state) { lsSet(gameKey(seed), JSON.stringify(state)); }
+
+  /* ---------------------------------------------------------------------------
+     QR
+  --------------------------------------------------------------------------- */
+  function qrSvg(text) {
+    var q = qrcode(0, "M");         // auto version, medium error correction
+    q.addData(text);
+    q.make();
+    // cellSize 6, margin 2 (in modules); createSvgTag returns a string
+    return q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  }
+
+  /* ---------------------------------------------------------------------------
+     Views
+  --------------------------------------------------------------------------- */
+  function topbar(right) {
+    return el("div", { class: "topbar" }, [
+      el("span", { class: "brand", text: "🍕 Food Show Bingo" }),
+      right || el("span"),
+    ]);
+  }
+
+  function viewLanding() {
+    var node = el("div", { class: "stack" }, [
+      topbar(),
+      el("div", { class: "grow" }),
+      el("h1", { text: "Food Show Bingo" }),
+      el("p", { class: "muted", text:
+        "Spot-it bingo for walking a trade-show floor with friends. " +
+        "No sign-up, no server — one person makes a game and shares the link." }),
+      el("button", {
+        class: "btn btn-primary btn-block", text: "Make a game",
+        onclick: function () { state.view = "setup"; render(); }
+      }),
+      el("p", { class: "hint", html:
+        "Joining? Open the link the host sends you." }),
+      el("div", { class: "grow" }),
+    ]);
+    mount(node);
+  }
+
+  /* ----- setup ----- */
+  var setupDraft = null;
+
+  function viewSetup() {
+    if (!setupDraft) {
+      var prev = lsJSON("fsb:lastSetup", null);
+      setupDraft = {
+        mode: (prev && MODES[prev.mode]) ? prev.mode : "line",
+        enabled: (prev && Array.isArray(prev.enabled) && prev.enabled.length === BUILTIN.length)
+          ? prev.enabled.slice() : new Array(BUILTIN.length).fill(true),
+        custom: (prev && Array.isArray(prev.custom)) ? prev.custom.slice() : [],
+      };
+    }
+    var d = setupDraft;
+
+    function countOn() {
+      return d.enabled.filter(Boolean).length + d.custom.length;
+    }
+
+    var modeSeg = el("div", { class: "seg" }, Object.keys(MODES).map(function (m) {
+      return el("button", {
+        text: MODES[m].label, "aria-pressed": String(d.mode === m),
+        onclick: function () { d.mode = m; render(); }
+      });
+    }));
+
+    var groups = {};
+    BUILTIN.forEach(function (item, i) { (groups[item.g] = groups[item.g] || []).push(i); });
+    var poolKids = [];
+    Object.keys(groups).forEach(function (g) {
+      poolKids.push(el("div", { class: "pool-group", text: g }));
+      groups[g].forEach(function (i) {
+        var cb = el("input", { type: "checkbox" });
+        cb.checked = d.enabled[i];
+        cb.addEventListener("change", function () { d.enabled[i] = cb.checked; updateCount(); });
+        poolKids.push(el("label", { class: "pool-item" }, [cb, el("span", { text: BUILTIN[i].t })]));
+      });
+    });
+    if (d.custom.length) {
+      poolKids.push(el("div", { class: "pool-group", text: "Your prompts" }));
+      d.custom.forEach(function (t, idx) {
+        poolKids.push(el("label", { class: "pool-item custom" }, [
+          el("button", {
+            class: "link-btn", text: "remove", style: "padding:0;color:var(--accent)",
+            onclick: function () { d.custom.splice(idx, 1); render(); }
+          }),
+          el("span", { text: t }),
+        ]));
+      });
+    }
+
+    var countTag = el("span", { class: "tag" });
+    function updateCount() {
+      var n = countOn();
+      countTag.textContent = n + " on · need 24";
+      countTag.style.color = n < 24 ? "var(--accent)" : "var(--muted)";
+      genBtn.disabled = n < 24;
+    }
+
+    var customInput = el("input", { type: "text", maxlength: "48",
+      placeholder: "Add your own prompt…" });
+    function addCustom() {
+      var v = customInput.value.trim();
+      if (!v) return;
+      if (d.custom.length >= 8) { toast("8 custom prompts max (keeps the QR scannable)"); return; }
+      d.custom.push(v);
+      customInput.value = "";
+      render();
+    }
+
+    var genBtn = el("button", {
+      class: "btn btn-primary btn-block", text: "Generate game link",
+      onclick: function () {
+        lsSet("fsb:lastSetup", JSON.stringify(d));
+        var cfg = { seed: randomSeed(), mode: d.mode, enabled: d.enabled.slice(), custom: d.custom.slice() };
+        location.hash = buildHash(cfg);   // triggers hashchange -> share view
+        state.view = "share";
+        render();
+      }
+    });
+
+    var node = el("div", { class: "stack" }, [
+      topbar(el("button", { class: "link-btn", text: "← back",
+        onclick: function () { setupDraft = null; state.view = "landing"; render(); } })),
+      el("h1", { text: "Make a game" }),
+
+      el("div", { class: "card-panel stack" }, [
+        el("label", { class: "field", text: "Win condition" }),
+        modeSeg,
+        el("p", { class: "hint", text: MODES[d.mode].blurb }),
+      ]),
+
+      el("div", { class: "card-panel stack" }, [
+        el("div", { style: "display:flex;justify-content:space-between;align-items:center" }, [
+          el("label", { class: "field", text: "Prompt pool", style: "margin:0" }), countTag,
+        ]),
+        el("div", { class: "pool-list" }, poolKids),
+        el("div", { class: "btn-row" }, [customInput,
+          el("button", { text: "Add", style: "flex:0 0 auto", onclick: addCustom })]),
+      ]),
+
+      genBtn,
+      el("p", { class: "hint", text:
+        "Every player gets a different card from the same pool. Turn off prompts that won't apply to your show." }),
+    ]);
+    mount(node);
+    updateCount();
+  }
+
+  /* ----- share ----- */
+  function viewShare() {
+    var cfg = parseHash();
+    if (!cfg) { state.view = "landing"; render(); return; }
+    var url = shareUrl(cfg);
+    var pool = poolFromConfig(cfg);
+
+    var qrBox = el("div", { class: "qr-wrap" });
+    try { qrBox.innerHTML = qrSvg(url); }
+    catch (e) { qrBox.textContent = "(QR unavailable — share the link below)"; }
+
+    var node = el("div", { class: "stack" }, [
+      topbar(),
+      el("h1", { text: "Game ready" }),
+      el("p", { class: "muted", text:
+        "Have everyone scan this or open the link. Then keep this phone — you're in the game too." }),
+      qrBox,
+      el("div", { class: "btn-row" }, [
+        el("button", { class: "btn btn-primary", text: "Copy link", onclick: function () {
+          copyText(url);
+        }}),
+        (navigator.share ? el("button", { text: "Share…", onclick: function () {
+          navigator.share({ title: "Food Show Bingo", text: "Join my bingo game", url: url })
+            .catch(function () {});
+        }}) : null),
+      ]),
+      el("div", { class: "code-box", text: url }),
+      el("p", { class: "hint", text: "Mode: " + MODES[cfg.mode].label + " · " + pool.length + " prompts in the pool" }),
+      el("button", { class: "btn btn-block", text: "Play →", onclick: function () {
+        state.view = "auto"; render();
+      }}),
+    ]);
+    mount(node);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { toast("Link copied"); },
+        function () { legacyCopy(text); }
+      );
+    } else { legacyCopy(text); }
+  }
+  function legacyCopy(text) {
+    var ta = el("textarea");
+    ta.value = text;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("Link copied"); }
+    catch (e) { toast("Couldn't copy — select the text below"); }
+    ta.remove();
+  }
+
+  /* ----- join ----- */
+  function viewJoin(cfg) {
+    var profile = getProfile() || { name: "", emoji: EMOJI[0] };
+    var draft = { name: profile.name, emoji: profile.emoji };
+
+    var nameInput = el("input", { type: "text", maxlength: "16", placeholder: "Your name",
+      value: draft.name, autocomplete: "off", autocapitalize: "words" });
+    nameInput.addEventListener("input", function () { draft.name = nameInput.value; validate(); });
+
+    var emojiGrid = el("div", { class: "emoji-grid" }, EMOJI.map(function (e) {
+      var b = el("button", { text: e, "aria-pressed": String(e === draft.emoji),
+        onclick: function () {
+          draft.emoji = e;
+          emojiGrid.querySelectorAll("button").forEach(function (btn) {
+            btn.setAttribute("aria-pressed", String(btn.textContent === e));
+          });
+        }});
+      return b;
+    }));
+
+    var playBtn = el("button", { class: "btn btn-primary btn-block", text: "Play", onclick: function () {
+      var name = draft.name.trim();
+      if (!name) return;
+      setProfile({ name: name, emoji: draft.emoji });
+      lsSet("fsb:joined:" + cfg.seed, "1");
+      state.view = "auto";
+      render();
+    }});
+    function validate() { playBtn.disabled = !draft.name.trim(); }
+
+    var node = el("div", { class: "stack" }, [
+      topbar(),
+      el("h1", { text: "Join the game" }),
+      el("p", { class: "muted", text:
+        "Mode: " + MODES[cfg.mode].label + ". Pick a name so your card stays yours." }),
+      el("div", { class: "card-panel stack" }, [
+        el("label", { class: "field", text: "Name" }),
+        nameInput,
+        el("label", { class: "field", text: "Pick a marker" }),
+        emojiGrid,
+      ]),
+      playBtn,
+      el("p", { class: "hint", text:
+        "This device remembers your name for rematches. Reopening the link won't wipe your card." }),
+    ]);
+    mount(node);
+    validate();
+  }
+
+  /* ----- board ----- */
+  var pressTimer = null;
+
+  function viewBoard(cfg) {
+    var profile = getProfile();
+    var pool = poolFromConfig(cfg);
+    var cells = buildCard(cfg.seed, profile.name, pool);
+    var game = loadGame(cfg.seed);
+    var win = winningCells(game.marks, cfg.mode);
+    var hasBingo = hasWin(game.marks, cfg.mode);
+
+    var boardEl = el("div", { class: "board" });
+    cells.forEach(function (cell, i) {
+      var cls = "sq";
+      if (cell.free) cls += " free";
+      if (isMarked(game.marks, i) && !cell.free) cls += " marked";
+      if (cell.free) cls += " marked";
+      if (game.notes[i]) cls += " has-note";
+      if (hasBingo && win[i]) cls += "";
+      var sq = el("div", { class: cls, role: "button", "aria-label": cell.text },
+        [el("span", { text: cell.text })]);
+
+      if (!cell.free) {
+        sq.addEventListener("click", function () {
+          if (suppressClick) { suppressClick = false; return; }
+          game.marks[i] = !game.marks[i];
+          saveGame(cfg.seed, game);
+          render();
+        });
+        // long-press -> detail / note sheet
+        var start = function () {
+          clearTimeout(pressTimer);
+          pressTimer = setTimeout(function () {
+            suppressClick = true;
+            openSquareSheet(cfg, game, i, cell.text);
+          }, 450);
+        };
+        var cancelP = function () { clearTimeout(pressTimer); };
+        sq.addEventListener("touchstart", start, { passive: true });
+        sq.addEventListener("touchend", cancelP);
+        sq.addEventListener("touchmove", cancelP);
+        sq.addEventListener("mousedown", start);
+        sq.addEventListener("mouseup", cancelP);
+        sq.addEventListener("mouseleave", cancelP);
+      }
+      boardEl.appendChild(sq);
+    });
+
+    var bingoBtn = el("button", {
+      class: "btn btn-primary btn-block",
+      text: hasBingo ? "BINGO!" : "Call BINGO",
+      onclick: function () {
+        if (!hasWin(game.marks, cfg.mode)) { toast("Not yet — finish the " + MODES[cfg.mode].label.toLowerCase()); return; }
+        game.claimed = true;
+        saveGame(cfg.seed, game);
+        state.view = "bingo";
+        render();
+      }
+    });
+    if (!hasBingo) bingoBtn.disabled = true;
+
+    var node = el("div", { class: "stack" }, [
+      el("div", { class: "board-head" }, [
+        el("span", { class: "who", text: profile.emoji + " " + profile.name }),
+        el("span", { class: "mode", text: "· " + MODES[cfg.mode].label }),
+        el("span", { class: "grow" }),
+        el("button", { class: "link-btn", text: "menu", onclick: function () { openGameMenu(cfg); } }),
+      ]),
+      boardEl,
+      el("div", { class: "board-foot" }, [bingoBtn]),
+      el("p", { class: "hint", text: "Tap a square when you see it. Long-press to add a witness note." }),
+    ]);
+    mount(node);
+  }
+  var suppressClick = false;
+
+  function openSquareSheet(cfg, game, i, text) {
+    var noteVal = game.notes[i] || "";
+    var ta = el("textarea", { placeholder: "Where / who? (optional, stays on this phone)", maxlength: "120" });
+    ta.value = noteVal;
+    var marked = !!game.marks[i];
+
+    var sheet = el("div", { class: "sheet stack" }, [
+      el("div", { class: "prompt-text", text: text }),
+      el("button", {
+        class: "btn btn-block " + (marked ? "" : "btn-primary"),
+        text: marked ? "Unmark this square" : "Mark as spotted",
+        onclick: function () {
+          game.marks[i] = !game.marks[i];
+          if (ta.value.trim()) game.notes[i] = ta.value.trim();
+          saveGame(cfg.seed, game);
+          close(); render();
+        }
+      }),
+      el("label", { class: "field", text: "Witness note" }),
+      ta,
+      el("div", { class: "btn-row" }, [
+        el("button", { class: "btn-ghost", text: "Cancel", onclick: function () { close(); } }),
+        el("button", { class: "btn-primary", text: "Save note", onclick: function () {
+          var v = ta.value.trim();
+          if (v) game.notes[i] = v; else delete game.notes[i];
+          saveGame(cfg.seed, game);
+          close(); render();
+        }}),
+      ]),
+    ]);
+    var backdrop = el("div", { class: "sheet-backdrop", onclick: function (e) {
+      if (e.target === backdrop) close();
+    }}, [sheet]);
+    function close() { backdrop.remove(); }
+    document.body.appendChild(backdrop);
+  }
+
+  function openGameMenu(cfg) {
+    var sheet = el("div", { class: "sheet stack" }, [
+      el("div", { class: "prompt-text", text: "Game menu" }),
+      el("button", { class: "btn btn-block", text: "Show join QR / link", onclick: function () {
+        close(); state.view = "share"; render();
+      }}),
+      el("button", { class: "btn btn-block", text: "Start a rematch (new cards)", onclick: function () {
+        close();
+        var next = { seed: randomSeed(), mode: cfg.mode, enabled: cfg.enabled.slice(), custom: cfg.custom.slice() };
+        location.hash = buildHash(next);
+        state.view = "share";
+        render();
+      }}),
+      el("button", { class: "btn btn-block", text: "Clear my marks on this card", onclick: function () {
+        saveGame(cfg.seed, { marks: new Array(25).fill(false), notes: {}, claimed: false });
+        close(); render();
+      }}),
+      el("button", { class: "btn-ghost btn-block", text: "Close", onclick: function () { close(); } }),
+    ]);
+    var backdrop = el("div", { class: "sheet-backdrop", onclick: function (e) {
+      if (e.target === backdrop) close();
+    }}, [sheet]);
+    function close() { backdrop.remove(); }
+    document.body.appendChild(backdrop);
+  }
+
+  /* ----- bingo ----- */
+  function viewBingo(cfg) {
+    var profile = getProfile();
+    var pool = poolFromConfig(cfg);
+    var cells = buildCard(cfg.seed, profile.name, pool);
+    var game = loadGame(cfg.seed);
+    var win = winningCells(game.marks, cfg.mode);
+
+    var boardEl = el("div", { class: "board" });
+    cells.forEach(function (cell, i) {
+      var cls = "sq";
+      if (cell.free) cls += " free marked";
+      else if (isMarked(game.marks, i)) cls += " marked";
+      if (win[i]) cls += "";
+      boardEl.appendChild(el("div", { class: cls,
+        style: win[i] ? "outline:2px solid var(--text);outline-offset:-2px" : "" },
+        [el("span", { text: cell.text })]));
+    });
+
+    var noteItems = Object.keys(game.notes).map(function (k) {
+      return el("li", { text: "“" + cells[+k].text + "” — " + game.notes[k] });
+    });
+
+    var node = el("div", { class: "stack" }, [
+      topbar(),
+      el("div", { class: "bingo-hero" }, [
+        el("div", { text: profile.emoji, style: "font-size:2rem" }),
+        el("div", { class: "big", text: "BINGO!" }),
+        el("div", { class: "muted", text: profile.name + " — show this to everyone" }),
+      ]),
+      boardEl,
+      noteItems.length ? el("div", { class: "card-panel" }, [
+        el("div", { class: "field", text: "Your witness notes" }),
+        el("ul", { class: "notes-list" }, noteItems),
+      ]) : null,
+      el("div", { class: "btn-row" }, [
+        el("button", { text: "Back to card", onclick: function () {
+          game.claimed = false; saveGame(cfg.seed, game);
+          state.view = "board"; render();
+        }}),
+        el("button", { class: "btn-primary", text: "Rematch", onclick: function () {
+          var next = { seed: randomSeed(), mode: cfg.mode, enabled: cfg.enabled.slice(), custom: cfg.custom.slice() };
+          location.hash = buildHash(next);
+          state.view = "share";
+          render();
+        }}),
+      ]),
+      el("p", { class: "hint", text:
+        "It's the honor system — if someone thinks you jumped the gun, the group decides." }),
+    ]);
+    mount(node);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Router
+  --------------------------------------------------------------------------- */
+  var state = { view: "auto" };
+
+  function render() {
+    var cfg = parseHash();
+
+    if (!cfg) {
+      if (state.view === "setup") return viewSetup();
+      return viewLanding();
+    }
+
+    // We have a game config in the URL.
+    if (state.view === "share") return viewShare();
+
+    var joined = lsGet("fsb:joined:" + cfg.seed) === "1";
+    var profile = getProfile();
+
+    if (state.view === "setup") { setupDraft = null; }
+
+    if (!joined || !profile || !profile.name) {
+      if (state.view === "bingo" || state.view === "board") state.view = "auto";
+      return viewJoin(cfg);
+    }
+
+    if (state.view === "bingo") return viewBingo(cfg);
+    if (state.view === "board") return viewBoard(cfg);
+
+    // auto: decide board vs bingo from saved state
+    var game = loadGame(cfg.seed);
+    if (game.claimed && hasWin(game.marks, cfg.mode)) { state.view = "bingo"; return viewBingo(cfg); }
+    state.view = "board";
+    return viewBoard(cfg);
+  }
+
+  window.addEventListener("hashchange", function () {
+    if (state.view !== "share") state.view = "auto";
+    render();
+  });
+
+  render();
+
+  /* ---------------------------------------------------------------------------
+     Service worker (offline) — harmless when opened from file://
+  --------------------------------------------------------------------------- */
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
