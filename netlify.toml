@@ -1,0 +1,16 @@
+# Static site — no build step. Publish the repo root as-is.
+[build]
+  publish = "."
+  command = ""
+
+# The service worker must always be revalidated so app-shell updates
+# reach players promptly; sw.js itself handles versioned cache cleanup.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
